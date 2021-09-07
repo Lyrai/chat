@@ -17,7 +17,7 @@ extern crate rocket;
 
 #[launch]
 async fn launch() -> Rocket<Build> {
-    start_chat();
+    //start_chat();
     let mut db_client_options =
         ClientOptions::parse("mongodb+srv://admin:BsJf03UnsmgQnXeW@cluster0.us09s.mongodb.net/myFirstDatabase?retryWrites=true&w=majority").await.unwrap();
 
