@@ -1,71 +1,38 @@
+use rocket::data::{FromData, Outcome, ToByteUnit};
 use rocket::futures::lock::Mutex;
 use rocket::tokio::io::{AsyncReadExt, AsyncWriteExt};
 use rocket::tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
 use rocket::tokio::net::TcpStream;
+use rocket::{Data, Request};
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use std::borrow::Borrow;
 
-pub struct Chat {
-    pub client_write_streams: Mutex<Vec<OwnedWriteHalf>>,
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Message {
+    pub bytes: Vec<u8>,
+    pub id: u8
 }
 
-impl Chat {
-    pub fn new() -> Self {
-        Chat {
-            client_write_streams: Mutex::new(vec![]),
-        }
-    }
+#[async_trait]
+impl<'r> FromData<'r> for Message {
+    type Error = ();
 
-    pub async fn add(self: Arc<Chat>, client: TcpStream) {
-        let (read, write) = client.into_split();
-        let mut vec = self.client_write_streams.lock().await;
+    async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> Outcome<'r, Self> {
+        let size = req
+            .headers()
+            .get_one("Content-Length")
+            .unwrap_or("2048")
+            .parse::<usize>()
+            .unwrap_or(2048);
+        println!("Size {}", size);
 
-        vec.push(write);
-        Chat::start_read_stream(self.clone(), read, vec.len() - 1);
-    }
+        let mut stream = data.open(size.bytes());
+        let mut msg = vec![0; size];
+        println!("Id: {}\nMessage {}", msg[0], String::from_utf8(msg[1..msg.len()].to_vec()).unwrap());
 
-    async fn write_all(self: Arc<Chat>, message: &[u8], size: &[u8], sender: usize) {
-        let mut clients = self.client_write_streams.lock().await;
+        stream.read(&mut msg).await;
 
-        for i in 0..clients.len() {
-            if sender == i {
-                continue;
-            }
-
-            clients[i].write(size).await;
-            clients[i].write(message).await;
-
-            println!("Written");
-        }
-    }
-
-    fn start_read_stream(chat: Arc<Chat>, mut read_stream: OwnedReadHalf, id: usize) {
-        rocket::tokio::spawn(async move {
-            loop {
-                match read_stream.read_u32_le().await {
-                    Ok(n) if n == 0 => continue,
-
-                    Ok(n) => {
-                        let size = n as usize;
-                        let mut msg = vec![0u8; size];
-                        let len = read_stream.read(&mut msg).await.unwrap();
-
-                        if len != size {
-                            eprintln!("Mismatched expected {} and actual length {}", size, len);
-                            read_stream.read(&mut [0; 1024]).await;
-                            return;
-                        }
-
-                        Chat::write_all(chat.clone(), &msg, &n.to_le_bytes(), id).await;
-                    }
-
-                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
-
-                    Err(e) => {
-                        eprintln!("{}", e);
-                        return;
-                    }
-                };
-            }
-        });
+        Outcome::Success(Message { id: msg[0], bytes: msg })
     }
 }

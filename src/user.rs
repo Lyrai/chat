@@ -1,11 +1,11 @@
-use rocket::http::{Status, Header};
+use rocket::http::{Header, Status};
 use rocket::request::{FromRequest, Outcome};
+use rocket::response::{Responder, Result};
 use rocket::{Request, Response};
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
-use std::sync::Mutex;
-use rocket::response::{Responder, Result};
 use std::io::Cursor;
+use std::sync::Mutex;
 
 macro_rules! unwrap_mutex {
     ($id: expr, $m: ident) => {
@@ -25,11 +25,12 @@ impl<'r> FromRequest<'r> for User {
 
     async fn from_request(request: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let login = request.headers().get_one("login");
+        let id = request.headers().get_one("id");
 
         match login {
             Some(login) => Outcome::Success(User {
                 login: String::from(login),
-                id: 0,
+                id: id.unwrap_or("0").parse::<i32>().unwrap_or(0),
             }),
             None => Outcome::Failure((Status::BadRequest, ())),
         }
