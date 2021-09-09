@@ -53,6 +53,7 @@ async fn connect(user: User, queue: &State<Sender<Message>>, mut end: Shutdown) 
     let mut rx = queue.subscribe();
     let id = user.id;
     ByteStream! {
+        yield vec![0u8];
         loop {
             let msg = select! {
                 msg = rx.recv() => match msg {
