@@ -1,31 +1,25 @@
 mod chat;
 mod user;
+mod auth;
+mod macros;
+mod prelude;
 
 use crate::chat::Message;
+use crate::user::{User, Users};
 use mongodb::{
-    bson,
     bson::doc,
-    options::{ClientOptions, FindOptions},
-    Client, Collection,
+    options::ClientOptions,
+    Client
 };
-use rocket::response::stream::{ByteStream, Event, EventStream};
+use rocket::response::{status, stream::ByteStream, content::Json};
 use rocket::tokio::select;
 use rocket::tokio::sync::broadcast::{channel, error::RecvError, Sender};
-use rocket::tokio::time::{self, Duration};
-use rocket::{
-    futures::TryStreamExt, http::Status, response::status, tokio, Build, Rocket, Shutdown, State,
-};
-use serde::{Deserialize, Serialize};
+use rocket::{futures::TryStreamExt, http::Status, Build, Rocket, Shutdown, State};
 use serde_json as json;
 use std::error::Error;
-use std::sync::Arc;
-use user::{User, Users};
-
-macro_rules! log_id {
-    ($db: ident) => {
-        $db.database("users").collection::<User>("log_id")
-    };
-}
+use crate::auth::LoginData;
+use crate::user::DbUser;
+use crate::prelude::get_db_size;
 
 #[macro_use]
 extern crate rocket;
@@ -45,18 +39,19 @@ async fn launch() -> Rocket<Build> {
         .manage(users)
         .manage(db_client)
         .manage(channel::<Message>(1024).0)
-        .mount("/", routes![register, get_users, connect, send, login])
+        .mount("/", routes![register, get_users, connect, send, login, get_user_by_id])
 }
 
-#[get("/connect")]
+#[post("/connect", data="<user>")]
 async fn connect(user: User, queue: &State<Sender<Message>>, mut end: Shutdown) -> ByteStream![Vec<u8>] {
     let mut rx = queue.subscribe();
-    let id = user.id;
+    let id = user.id();
+
     ByteStream! {
-        yield vec![0u8];
         loop {
             let msg = select! {
                 msg = rx.recv() => match msg {
+                    Ok(msg) if msg.bytes.len() == 1 && msg.bytes[0] == 0 => continue,
                     Ok(msg) if msg.id == id as u8 => continue,
                     Ok(msg) => msg.bytes,
                     Err(RecvError::Closed) => break,
@@ -71,39 +66,36 @@ async fn connect(user: User, queue: &State<Sender<Message>>, mut end: Shutdown) 
 }
 
 #[post("/send", data = "<msg>")]
-fn send(msg: Message, queue: &State<Sender<Message>>) {
-    queue.send(msg);
+fn send(msg: Message, queue: &State<Sender<Message>>) -> Status {
+    let _ = queue.send(msg);
+    Status::Accepted
 }
 
-#[post("/register")]
-async fn register(
-    info: User,
-    db_client: &State<Client>,
-    users: &State<Users>,
-) -> status::Custom<String> {
-    let db = log_id!(db_client);
-    let found = db.find_one(doc! {"login": info.login.clone()}, None).await;
+#[post("/register", data="<info>")]
+async fn register(info: LoginData, db_client: &State<Client>, users: &State<Users>) -> status::Custom<String> {
+    let db = log_id!(db_client, DbUser);
+    let found = find_in! {
+        database db
+        param "login": info.login()
+    };
 
     if let Ok(Some(_)) = found {
         return status::Custom(
             Status::Conflict,
-            format!("User with login {} already exists", info.login),
+            format!("User with login {} already exists", info.login())
         );
     } else if let Err(e) = found {
         eprintln!("Registration error: {:?}", e);
         return status::Custom(
             Status::BadGateway,
-            "Error occurred during registration".to_owned(),
+            "Error occurred during registration".to_owned()
         );
     }
 
-    let id = db.count_documents(None, None).await.unwrap();
+    let id = get_db_size(&db);
+    let password = bcrypt::hash(info.password(), 5).unwrap();
 
-    let new = User {
-        login: info.login,
-        id: id as i32,
-    };
-
+    let new = DbUser::new(info.login(), password, id);
     let insert_result = db.insert_one(new.clone(), None).await;
 
     if let Err(e) = insert_result {
@@ -114,35 +106,48 @@ async fn register(
         );
     }
 
-    users.add(new.clone());
-    status::Custom(Status::Accepted, json::to_string(&new).unwrap())
+    let user = User::from(new.clone());
+    users.add(user.clone());
+    status::Custom(Status::Found, json::to_string(&user).unwrap())
 }
 
-#[post("/login")]
-async fn login(login: User, db_client: &State<Client>) -> String {
-    let db = log_id!(db_client);
-    let found = db
-        .find_one(doc! {"login": login.login.clone()}, None)
-        .await
-        .unwrap()
-        .unwrap();
+#[post("/login", data="<login>")]
+async fn login(login: LoginData, db_client: &State<Client>) -> Result<Json<User>, status::Custom<String>> {
+    let db = log_id!(db_client, DbUser);
 
-    json::to_string(&found).unwrap()
+    let found = find_in! {
+        database db
+        param "login": login.login()
+    };
+
+    let user = found.unwrap_or(None);
+    match user {
+        None => Err(status::Custom(Status::NotFound, String::new())),
+        Some(user) => {
+            let matches = bcrypt::verify(login.password(), &user.password()).unwrap();
+            if matches {
+                Ok(Json(User::from(user)))
+            } else {
+                Err(status::Custom(Status::BadRequest, "Passwords do not match".to_owned()))
+            }
+        }
+    }
 }
 
 #[get("/get_users")]
-async fn get_users(db_client: &State<Client>) -> String {
+async fn get_users(db_client: &State<Client>) -> Json<String> {
     let result = get_users_internal(db_client).await;
+
     if let Err(e) = result {
         eprintln!("Error retrieving users: {:?}", e);
-        return "Internal server error".to_owned();
+        return Json("Internal server error".to_owned());
     }
 
-    json::to_string(&result.unwrap().users).unwrap()
+    Json(json::to_string(&result.unwrap().users).unwrap())
 }
 
 async fn get_users_internal(db_client: &Client) -> Result<Users, Box<dyn Error>> {
-    let db = log_id!(db_client);
+    let db = log_id!(db_client, User);
 
     let mut users = db.find(None, None).await?;
     let result = Users::new();
@@ -153,6 +158,7 @@ async fn get_users_internal(db_client: &Client) -> Result<Users, Box<dyn Error>>
     Ok(result)
 }
 
+#[allow(dead_code)]
 #[get("/get/<id>")]
 fn get_user_by_id(id: i32, users: &State<Users>) -> Option<User> {
     users.get(id)

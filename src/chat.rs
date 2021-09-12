@@ -1,12 +1,8 @@
 use rocket::data::{FromData, Outcome, ToByteUnit};
-use rocket::futures::lock::Mutex;
-use rocket::tokio::io::{AsyncReadExt, AsyncWriteExt};
-use rocket::tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
-use rocket::tokio::net::TcpStream;
+use rocket::tokio::io::{AsyncReadExt};
 use rocket::{Data, Request};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use std::borrow::Borrow;
+use crate::content_length;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Message {
@@ -19,12 +15,7 @@ impl<'r> FromData<'r> for Message {
     type Error = ();
 
     async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> Outcome<'r, Self> {
-        let size = req
-            .headers()
-            .get_one("Content-Length")
-            .unwrap_or("2048")
-            .parse::<usize>()
-            .unwrap_or(2048);
+        let size = content_length!(req, 1 << 15);
         println!("Size {}", size);
 
         let mut stream = data.open(size.bytes());
