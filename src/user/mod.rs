@@ -1,13 +1,17 @@
+mod dbuser;
+pub use dbuser::DbUser;
+
+mod users;
+pub use users::Users;
+
 use rocket::http::Status;
 use rocket::request::{FromRequest, Outcome};
 use rocket::response::{Responder, Result};
 use rocket::{Request, Response, Data};
 use serde::{Deserialize, Serialize};
-use std::cell::RefCell;
 use std::io::Cursor;
-use std::sync::Mutex;
 use rocket::data::FromData;
-use crate::{content_length, unwrap_mutex};
+use crate::content_length;
 use crate::prelude::*;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -29,8 +33,8 @@ impl User {
 impl From<DbUser> for User {
     fn from(user: DbUser) -> Self {
         User {
-            login: user.login,
-            id: user.id
+            login: user.login(),
+            id: user.id()
         }
     }
 }
@@ -80,58 +84,5 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for User {
             .finalize();
 
         Ok(response)
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct DbUser {
-    login: String,
-    password: String,
-    id: i32
-}
-
-impl DbUser {
-    pub fn new(login: String, password: String, id: i32) -> Self {
-        DbUser {
-            login,
-            password,
-            id
-        }
-    }
-
-    pub fn login(&self) -> String {
-        self.login.clone()
-    }
-
-    pub fn id(&self) -> i32 {
-        self.id
-    }
-
-    pub fn password(&self) -> String {
-        self.password.clone()
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Users {
-    pub users: Mutex<RefCell<Vec<User>>>,
-}
-
-impl Users {
-    pub fn new() -> Self {
-        Users {
-            users: Mutex::new(RefCell::new(vec![])),
-        }
-    }
-
-    pub fn get(&self, id: i32) -> Option<User> {
-        unwrap_mutex!(self.users, borrow)
-            .iter()
-            .find(|x| x.id == id)
-            .cloned()
-    }
-
-    pub fn add(&self, user: User) {
-        unwrap_mutex!(self.users, borrow_mut).push(user);
     }
 }
