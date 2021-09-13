@@ -51,7 +51,7 @@ async fn connect(user: User, queue: &State<Sender<Message>>, mut end: Shutdown) 
         loop {
             let msg = select! {
                 msg = rx.recv() => match msg {
-                    Ok(msg) if msg.bytes.len() == 2 && msg.bytes[1] == 0 => continue,
+                    Ok(msg) if msg.bytes.len() == 2 && msg.bytes[1] == 0 && msg.id == id => vec![0u8],
                     Ok(msg) if msg.id == id as u8 => continue,
                     Ok(msg) => msg.bytes,
                     Err(RecvError::Closed) => break,
