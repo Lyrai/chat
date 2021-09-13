@@ -24,9 +24,9 @@ impl<'r> FromData<'r> for Message {
         stream.read(&mut msg).await;
         let bytes = msg[1..msg.len()].to_vec();
         if msg[1] != 0 {
-            println!("Id: {}\nMessage {}", msg[0], String::from_utf8(bytes.clone()).unwrap());
+            println!("Id: {}\nMessage {}", msg[0], String::from_utf8(bytes).unwrap());
         }
 
-        Outcome::Success(Message { id: msg[0], bytes })
+        Outcome::Success(Message { id: msg[0], bytes: msg })
     }
 }
