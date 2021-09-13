@@ -15,15 +15,18 @@ impl<'r> FromData<'r> for Message {
     type Error = ();
 
     async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> Outcome<'r, Self> {
-        let size = content_length!(req, 1 << 15);
+        let mut stream = data.open((1 << 15).bytes());
+        let size = stream.hint();
         println!("Size {}", size);
 
-        let mut stream = data.open(size.bytes());
         let mut msg = vec![0; size];
-        println!("Id: {}\nMessage {}", msg[0], String::from_utf8(msg[1..msg.len()].to_vec()).unwrap());
 
         stream.read(&mut msg).await;
+        let bytes = msg[1..msg.len()].to_vec();
+        if msg[1] != 0 {
+            println!("Id: {}\nMessage {}", msg[0], String::from_utf8(bytes.clone()).unwrap());
+        }
 
-        Outcome::Success(Message { id: msg[0], bytes: msg })
+        Outcome::Success(Message { id: msg[0], bytes })
     }
 }
