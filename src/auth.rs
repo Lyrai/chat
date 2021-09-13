@@ -1,4 +1,4 @@
-use rocket::data::{FromData, Outcome};
+use rocket::data::{FromData, Outcome, ToByteUnit};
 use rocket::{Request, Data};
 use serde::{Serialize, Deserialize};
 use crate::content_length;
@@ -17,7 +17,7 @@ impl<'r> FromData<'r> for LoginData {
     async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> Outcome<'r, Self> {
         let size = content_length!(req, 1 << 15);
 
-        let user = read_data(data, size).await;
+        let user = read_data(data).await;
         Outcome::Success(serde_json::from_str::<LoginData>(&user).unwrap())
     }
 }

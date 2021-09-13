@@ -62,9 +62,7 @@ impl <'r> FromData<'r> for User {
     type Error = ();
 
     async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> rocket::data::Outcome<'r, Self> {
-        let size = content_length!(req, 1 << 15);
-
-        let user = read_data(data, size).await;
+        let user = read_data(data).await;
         let user = serde_json::from_str::<User>(&user).unwrap();
 
         rocket::data::Outcome::Success(user)
