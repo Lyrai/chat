@@ -74,10 +74,12 @@ fn send(msg: Message, queue: &State<Sender<Message>>) -> Status {
 #[post("/register", data="<info>")]
 async fn register(info: LoginData, db_client: &State<Client>, users: &State<Users>) -> status::Custom<String> {
     let db = log_id!(db_client, DbUser);
+    println!("Connected to db");
     let found = find_in! {
         database db
         param "login": info.login()
     };
+    println!("Got db result");
 
     if let Ok(Some(_)) = found {
         return status::Custom(
@@ -91,12 +93,15 @@ async fn register(info: LoginData, db_client: &State<Client>, users: &State<User
             "Error occurred during registration".to_owned()
         );
     }
+    println!("Errors handled");
 
-    let id = get_db_size(&db);
+    let id = get_db_size(&db).await;
     let password = bcrypt::hash(info.password(), 5).unwrap();
+    println!("Got size and hash");
 
     let new = DbUser::new(info.login(), password, id);
     let insert_result = db.insert_one(new.clone(), None).await;
+    println!("Inserted");
 
     if let Err(e) = insert_result {
         eprintln!("Error adding db: {:?}", e);

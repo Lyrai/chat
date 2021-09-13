@@ -12,6 +12,6 @@ pub async fn read_data(data: Data<'_>, size: usize) -> String {
     String::from_utf8(buf).unwrap()
 }
 
-pub fn get_db_size<T>(db: &Collection<T>) -> i32 {
-    executor::block_on(db.count_documents(None, None)).unwrap() as i32
+pub async fn get_db_size<T>(db: &Collection<T>) -> i32 {
+    db.count_documents(None, None).await.unwrap() as i32
 }
