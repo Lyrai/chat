@@ -1,11 +1,9 @@
 use rocket::Data;
 use rocket::data::ToByteUnit;
-use rocket::tokio::io::AsyncReadExt;
 use mongodb::Collection;
-use rocket::futures::executor;
 
 pub async fn read_data(data: Data<'_>) -> String {
-    let mut data = data.open((1 << 15).bytes());
+    let data = data.open((1 << 15).bytes());
     data.into_string().await.unwrap().value
 }
 

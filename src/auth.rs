@@ -1,7 +1,6 @@
-use rocket::data::{FromData, Outcome, ToByteUnit};
+use rocket::data::{FromData, Outcome};
 use rocket::{Request, Data};
 use serde::{Serialize, Deserialize};
-use crate::content_length;
 use crate::prelude::*;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -14,9 +13,7 @@ pub struct LoginData {
 impl<'r> FromData<'r> for LoginData {
     type Error = ();
 
-    async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> Outcome<'r, Self> {
-        let size = content_length!(req, 1 << 15);
-
+    async fn from_data(_: &'r Request<'_>, data: Data<'r>) -> Outcome<'r, Self> {
         let user = read_data(data).await;
         Outcome::Success(serde_json::from_str::<LoginData>(&user).unwrap())
     }

@@ -45,20 +45,25 @@ async fn launch() -> Rocket<Build> {
 #[post("/connect", data="<user>")]
 async fn connect(user: User, queue: &State<Sender<Message>>, mut end: Shutdown) -> ByteStream![Vec<u8>] {
     let mut rx = queue.subscribe();
-    let id = user.id();
+    let id = user.id() as u8;
+    if id != 0 {
+        let mut start_message: Vec<u8> = vec![0];
+        start_message.append(&mut format!("{} connected", user.login()).as_bytes().to_vec());
+        let _ = queue.send(Message {id, bytes: start_message});
+    }
 
     ByteStream! {
         loop {
             let msg = select! {
                 msg = rx.recv() => match msg {
                     Ok(msg) if msg.bytes.len() == 2 && msg.bytes[1] == 0 => {
-                        if msg.id == id as u8 {
+                        if msg.id == id {
                             vec![0u8]
                         } else {
                             continue
                         }
                     }
-                    Ok(msg) if msg.id == id as u8 => continue,
+                    Ok(msg) if msg.id == id => continue,
                     Ok(msg) => msg.bytes,
                     Err(RecvError::Closed) => break,
                     Err(RecvError::Lagged(_)) => continue,

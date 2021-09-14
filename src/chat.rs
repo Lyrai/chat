@@ -2,7 +2,6 @@ use rocket::data::{FromData, Outcome, ToByteUnit};
 use rocket::tokio::io::{AsyncReadExt};
 use rocket::{Data, Request};
 use serde::{Deserialize, Serialize};
-use crate::content_length;
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Message {
@@ -14,7 +13,7 @@ pub struct Message {
 impl<'r> FromData<'r> for Message {
     type Error = ();
 
-    async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> Outcome<'r, Self> {
+    async fn from_data(_: &'r Request<'_>, data: Data<'r>) -> Outcome<'r, Self> {
         let mut stream = data.open((1 << 15).bytes());
         let size = stream.hint();
         println!("Size {}", size);
