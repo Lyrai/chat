@@ -11,7 +11,6 @@ use rocket::{Request, Response, Data};
 use serde::{Deserialize, Serialize};
 use std::io::Cursor;
 use rocket::data::FromData;
-use crate::content_length;
 use crate::prelude::*;
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -61,7 +60,7 @@ impl<'r> FromRequest<'r> for User {
 impl <'r> FromData<'r> for User {
     type Error = ();
 
-    async fn from_data(req: &'r Request<'_>, data: Data<'r>) -> rocket::data::Outcome<'r, Self> {
+    async fn from_data(_: &'r Request<'_>, data: Data<'r>) -> rocket::data::Outcome<'r, Self> {
         let user = read_data(data).await;
         let user = serde_json::from_str::<User>(&user).unwrap();
 
