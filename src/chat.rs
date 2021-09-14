@@ -1,13 +1,6 @@
 use rocket::data::{FromData, Outcome, ToByteUnit};
 use rocket::tokio::io::{AsyncReadExt};
 use rocket::{Data, Request};
-use serde::{Deserialize, Serialize};
-
-/*#[derive(Clone)]
-pub struct Message {
-    pub bytes: Vec<u8>,
-    pub id: u8
-}*/
 
 #[derive(Clone)]
 pub enum Message {

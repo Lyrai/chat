@@ -47,6 +47,12 @@ async fn connect(user: User, queue: &State<Sender<Message>>, mut end: Shutdown) 
     let mut rx = queue.subscribe();
     let id = user.id();
 
+    if id != 0 {
+        let mut start_message: Vec<u8> = vec![0];
+        start_message.append(&mut format!("{} connected", user.login()).as_bytes().to_vec());
+        let _ = queue.send(Message::Message(0, start_message));
+    }
+
     ByteStream! {
         loop {
             let msg = select! {
