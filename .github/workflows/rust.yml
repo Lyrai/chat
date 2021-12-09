@@ -25,4 +25,4 @@ jobs:
     - name: Clean up
       run: ./../../cleanup
     - name: Run
-      run: docker run -p 80:8000/tcp --rm --name chat chat:chat
+      run: ./../../run
