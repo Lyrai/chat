@@ -14,6 +14,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Pull changes
+      run: git pull
     - name: Stop docker
       run: sudo docker stop chat
     - name: Clear docker
