@@ -30,7 +30,7 @@ async fn launch() -> Rocket<Build> {
         ClientOptions::parse("mongodb+srv://server:jRk3JcqhsOXsT4RC@cluster0.us09s.mongodb.net/myFirstDatabase?retryWrites=true&w=majority")
             .await
             .unwrap();
-    println!("Start");
+    println!("Start 3");
 
     db_client_options.app_name = Some("Chat".to_string());
     let db_client = Client::with_options(db_client_options).unwrap();
