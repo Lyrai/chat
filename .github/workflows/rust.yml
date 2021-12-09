@@ -14,10 +14,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Test
+      run: docker images
     - name: Pull changes
       run: git pull
     - name: Stop
-      run: docker stop chat; docker rm chat
+      run: ./stop
     - name: Build
       run: docker build $PWD -t chat
     - name: Clean up

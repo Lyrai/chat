@@ -176,6 +176,11 @@ async fn get_users_internal(db_client: &Client) -> Result<Users, Box<dyn Error>>
     Ok(result)
 }
 
+#[get("test")]
+fn test() -> String {
+    String::from("Updated")
+}
+
 #[allow(dead_code)]
 #[get("/get/<id>")]
 fn get_user_by_id(id: i32, users: &State<Users>) -> Option<User> {
