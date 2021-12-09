@@ -14,8 +14,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Test
-      run: docker images
     - name: Pull changes
       run: git pull
     - name: Stop
