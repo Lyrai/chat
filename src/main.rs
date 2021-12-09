@@ -178,7 +178,7 @@ async fn get_users_internal(db_client: &Client) -> Result<Users, Box<dyn Error>>
 
 #[get("/test")]
 fn test() -> String {
-    String::from("It works")
+    String::from("It works again")
 }
 
 #[allow(dead_code)]
