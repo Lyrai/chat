@@ -23,4 +23,4 @@ jobs:
     - name: Clean up
       run: ./cleanup
     - name: Run
-      run: docker run -it --rm --name chat chat:chat
+      run: docker run -p 80:8000/tcp -it --rm --name chat chat:chat
