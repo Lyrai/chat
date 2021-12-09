@@ -40,7 +40,7 @@ async fn launch() -> Rocket<Build> {
         .manage(users)
         .manage(db_client)
         .manage(channel::<Message>(1024).0)
-        .mount("/", routes![register, get_users, connect, send, login, get_user_by_id])
+        .mount("/", routes![register, get_users, connect, send, login, get_user_by_id, test])
 }
 
 #[post("/connect", data="<user>")]
@@ -176,7 +176,7 @@ async fn get_users_internal(db_client: &Client) -> Result<Users, Box<dyn Error>>
     Ok(result)
 }
 
-#[get("test")]
+#[get("/test")]
 fn test() -> String {
     String::from("Updated")
 }
