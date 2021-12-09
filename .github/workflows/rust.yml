@@ -21,8 +21,8 @@ jobs:
     - name: Stop
       run: ./../../stop
     - name: Build
-      run: docker build $PWD -t chat
+      run: docker build $PWD -t chat:chat
     - name: Clean up
       run: ./../../cleanup
     - name: Run
-      run: docker run -p 80:8000/tcp -it --rm --name chat chat:chat
+      run: docker run -p 80:8000/tcp --rm --name chat chat:chat
