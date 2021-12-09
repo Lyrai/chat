@@ -23,4 +23,4 @@ jobs:
     - name: Clean up
       run: ./../../cleanup
     - name: Run
-      run: ./../../run
+      run: ./gnome-terminal -- ./../../run
