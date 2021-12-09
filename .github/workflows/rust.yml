@@ -14,7 +14,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo run
+    - name: Stop docker
+      run: sudo docker stop chat
+    - name: Clear docker
+      run: sudo docker rmi -f chat
+    - name: Build docker
+      run: sudo docker build $PWD -t chat
+    - name: Run
+        run: sudo docker run -it --rm --name chat chat
